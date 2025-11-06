@@ -1,0 +1,16 @@
+application:
+  host : 127.0.0.1
+  port : 8000
+  client_url : http://localhost:3000
+database:
+  host: localhost
+  port : 5432
+  username : admin
+  password: root
+  database_name: boards_db 
+  require_ssl : false
+jwt:
+  issuer : localhost:8000
+  audience : localhost:8000
+  access_token_secret : secret
+  refresh_token_secret : secret

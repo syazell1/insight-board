@@ -1,0 +1,72 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "api"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+
+[dependencies]
+axum = "0.8.4"
+axum-extra = { version ="0.12.1", features = ["typed-header"] }
+tower-http = { version = "0.6.6", features = ["cors", "trace"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.48.0", features = ["full"] }
+tracing = { version = "0.1.41", features = ["log"] }
+tracing-subscriber = { version = "0.3.20", features = ["registry", "env-filter"] }
+tracing-bunyan-formatter = "0.3.10"
+tracing-log = "0.2.0" 
+config = "0.15"
+validator = {version = "0.20.0", features = ["derive"] }
+unicode-segmentation = "1.12.0"
+chrono = { version = "0.4.42", features = ["serde"] }
+secrecy = { version = "0.10.3", features = ["serde"] }
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+argon2 = { version = "0.5.3", features = ["std"] }
+password-hash = "0.5.0"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+cookie = "0.18.1"
+reqwest = { version = "0.12.24", features = ["rustls-tls", "json"] }
+serde_json = "1.0.145"
+rand = "0.9.2"
+async-trait = "0.1.89"
+serde-aux = "4.7.0"
+
+
+[dev-dependencies]
+mockall = "0.13.1"
+wiremock = "0.6.5"
+claims = "0.8.0"
+fake = "4.4.0"
+
+[dependencies.sqlx]
+version = "0.8.6"
+default-features = false
+features = [
+    "runtime-tokio",
+    "tls-rustls-ring",
+    "postgres",
+    "macros",
+    "migrate",
+    "uuid",
+    "chrono",
+    "bigdecimal"
+]
+
+[dependencies.uuid]
+version = "1.18"
+features = [
+    "serde",
+    "v7",
+]
