@@ -17,7 +17,7 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use crate::{
     app_state::AppState,
     config::{DatabaseSettings, Settings},
-    features::health_check::health_check,
+    features::{auth::routes::auth_routes, health_check::health_check},
 };
 
 pub struct Application {
@@ -114,7 +114,9 @@ fn get_app_routes(app_state: Arc<AppState>) -> Router {
     Router::new()
         .nest(
             "/api",
-            Router::new().route("/health_check", get(health_check)),
+            Router::new()
+                .route("/health_check", get(health_check))
+                .nest("/auth", auth_routes()),
         )
         .with_state(app_state)
 }
