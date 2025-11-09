@@ -80,7 +80,9 @@ fn create_app_state(config: &Settings) -> Result<Arc<AppState>> {
 }
 
 fn create_db_pool(config: &DatabaseSettings) -> Result<PgPool> {
-    Ok(PgPool::connect_lazy_with(config.get_connection_options()))
+    Ok(PgPool::connect_lazy_with(
+        config.get_connection_options_with_db(),
+    ))
 }
 
 fn build_router(app_state: Arc<AppState>, client_url: &str) -> Result<Router> {
