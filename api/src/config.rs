@@ -43,7 +43,7 @@ enum Environment {
 }
 
 impl DatabaseSettings {
-    pub fn get_connection_options(&self) -> PgConnectOptions {
+    pub fn get_connection_options_without_db(&self) -> PgConnectOptions {
         let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {
@@ -55,8 +55,12 @@ impl DatabaseSettings {
             .username(&self.username)
             .password(&self.password.expose_secret())
             .port(self.port)
-            .database(&self.database_name)
             .ssl_mode(ssl_mode)
+    }
+
+    pub fn get_connection_options_with_db(&self) -> PgConnectOptions {
+        self.get_connection_options_without_db()
+            .database(&self.database_name)
     }
 }
 
