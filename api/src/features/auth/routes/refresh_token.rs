@@ -13,7 +13,7 @@ use crate::{
     app_state::AppState,
     errors::AppError,
     features::auth::{
-        jwt::{decode_jwt, generate_jwt_tokens},
+        jwt::{decode_jwt, decode_jwt_with_options, generate_jwt_tokens},
         repository::{
             add_users_token_by_token, delete_all_refresh_token_by_user_id,
             delete_refresh_token_by_token, get_user_tokens_by_token,
@@ -36,24 +36,33 @@ pub async fn refresh_user_token(
         }
     };
 
-    let user_token_data = match get_user_tokens_by_token(rt, &app_state.pool).await? {
-        Some(data) => data,
+    // Check if the refresh token exists in the database
+    let db_user_id = match get_user_tokens_by_token(rt, &app_state.pool).await? {
+        Some(user_id) => user_id,
         None => {
-            let token_data = decode_jwt(rt, &app_state.jwt_settings, true)
-                .map_err(|e| AppError::UnauthorizedError(e.to_string()))?;
-
-            let user = get_user_info_by_id(token_data.claims.id, &app_state.pool).await?;
-
-            delete_all_refresh_token_by_user_id(user.id, &app_state.pool).await?;
-            return Err(AppError::UnauthorizedError(
-                "Refresh token reuse found.".into(),
-            ));
+            // Token not in DB - might be a reused token
+            // Try to decode it (even if expired) to detect reuse
+            if let Ok(token_data) = decode_jwt_with_options(rt, &app_state.jwt_settings, true, true) {
+                // Token is valid (even if expired) - this is token reuse
+                let user_id = token_data.claims.id;
+                delete_all_refresh_token_by_user_id(user_id, &app_state.pool).await?;
+                return Err(AppError::UnauthorizedError(
+                    "Refresh token reuse detected. All tokens have been revoked.".into(),
+                ));
+            } else {
+                // Token is invalid or malformed
+                return Err(AppError::UnauthorizedError(
+                    "Invalid refresh token.".into(),
+                ));
+            }
         }
     };
 
-    let token_data = match decode_jwt(rt, &app_state.jwt_settings, false) {
+    // Token exists in DB - decode and validate it (check expiration)
+    let token_data = match decode_jwt(rt, &app_state.jwt_settings, true) {
         Ok(data) => data,
         Err(e) => {
+            // Token is expired or invalid
             if *e.kind() == jsonwebtoken::errors::ErrorKind::ExpiredSignature {
                 delete_refresh_token_by_token(rt, &app_state.pool).await?;
             }
@@ -62,8 +71,11 @@ pub async fn refresh_user_token(
         }
     };
 
-    if user_token_data != token_data.claims.id {
-        return Err(AppError::UnauthorizedError("Invalid jwt token".into()));
+    // Verify the user_id from database matches the user_id in token claims
+    if db_user_id != token_data.claims.id {
+        return Err(AppError::UnauthorizedError(
+            "Token user ID mismatch.".into(),
+        ));
     }
 
     let user = get_user_info_by_id(token_data.claims.id, &app_state.pool).await?;
