@@ -15,10 +15,7 @@ use crate::{
     config::JwtSettings,
     errors::AppError,
     features::auth::{
-        jwt::encode_jwt,
-        models::RegisterFormData,
-        pwd_hasher::{PwdHasher, ServerPwdHasher},
-        routes::{build_auth_response, create_refresh_token_cookie},
+        jwt::encode_jwt, models::RegisterFormData, pwd_hasher::{PwdHasher, ServerPwdHasher}, repository::add_users_token_by_token, routes::{build_auth_response, create_refresh_token_cookie}
     },
 };
 
@@ -35,6 +32,8 @@ pub async fn register_user(
 
     let (access_token, refresh_token) = generate_jwt_tokens(user_id, &app_state.jwt_settings)?;
 
+    let refresh_token_cookie = create_refresh_token_cookie(&refresh_token);
+    add_users_token_by_token(refresh_token_cookie.value(), user_id, &app_state.pool).await?;
     let rt_cookie = create_refresh_token_cookie(&refresh_token);
 
     Ok(build_auth_response(user_id, &access_token, rt_cookie).into_response())
