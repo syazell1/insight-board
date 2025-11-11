@@ -18,7 +18,7 @@ CREATE TABLE users_tokens (
 );
 
 CREATE TABLE api_endpoints (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid PRIMARY KEY, 
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE api_endpoints (
 );
 
 CREATE TABLE api_metrics (
-    id BIGSERIAL PRIMARY KEY,
+    id uuid PRIMARY KEY, 
     api_id UUID NOT NULL REFERENCES api_endpoints(id) ON DELETE CASCADE,
     checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     status_code INT,
