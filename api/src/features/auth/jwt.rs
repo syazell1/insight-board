@@ -57,9 +57,19 @@ pub fn decode_jwt(
     jwt_settings: &JwtSettings,
     is_refresh_token: bool,
 ) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    decode_jwt_with_options(token, jwt_settings, is_refresh_token, false)
+}
+
+pub fn decode_jwt_with_options(
+    token: &str,
+    jwt_settings: &JwtSettings,
+    is_refresh_token: bool,
+    ignore_expiration: bool,
+) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
     let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256);
     validation.set_issuer(&[jwt_settings.issuer.to_string()]);
     validation.set_audience(&[jwt_settings.audience.to_string()]);
+    validation.validate_exp = !ignore_expiration;
 
     let secret_key = if is_refresh_token {
         DecodingKey::from_secret(jwt_settings.refresh_token_secret.expose_secret().as_bytes())

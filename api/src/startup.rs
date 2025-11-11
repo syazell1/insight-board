@@ -17,7 +17,10 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use crate::{
     app_state::AppState,
     config::{DatabaseSettings, Settings},
-    features::{auth::routes::auth_routes, health_check::health_check},
+    features::{
+        api::routes::api_routes, auth::routes::auth_routes, health_check::health_check,
+        metrics::routes::metric_routes,
+    },
 };
 
 pub struct Application {
@@ -79,8 +82,10 @@ fn create_app_state(config: &Settings) -> Result<Arc<AppState>> {
     }))
 }
 
-fn create_db_pool(config: &DatabaseSettings) -> Result<PgPool> {
-    Ok(PgPool::connect_lazy_with(config.get_connection_options()))
+pub fn create_db_pool(config: &DatabaseSettings) -> Result<PgPool> {
+    Ok(PgPool::connect_lazy_with(
+        config.get_connection_options_with_db(),
+    ))
 }
 
 fn build_router(app_state: Arc<AppState>, client_url: &str) -> Result<Router> {
@@ -116,7 +121,9 @@ fn get_app_routes(app_state: Arc<AppState>) -> Router {
             "/api",
             Router::new()
                 .route("/health_check", get(health_check))
-                .nest("/auth", auth_routes()),
+                .nest("/auth", auth_routes())
+                .nest("/api", api_routes())
+                .nest("/api_metrics", metric_routes()),
         )
         .with_state(app_state)
 }
