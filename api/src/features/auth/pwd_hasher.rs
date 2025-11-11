@@ -42,9 +42,10 @@ impl PwdHasher for ServerPwdHasher {
 /// Creates an Argon2 hasher instance with consistent parameters.
 /// Uses Argon2id algorithm with recommended parameters for password hashing.
 fn create_argon2_hasher() -> Result<Argon2<'static>, AppError> {
-    let params = argon2::Params::new(15000, 2, 1, None)
-        .map_err(|e| AppError::UnexpectedError(anyhow::anyhow!("Invalid Argon2 parameters: {}", e)))?;
-    
+    let params = argon2::Params::new(15000, 2, 1, None).map_err(|e| {
+        AppError::UnexpectedError(anyhow::anyhow!("Invalid Argon2 parameters: {}", e))
+    })?;
+
     Ok(Argon2::new(
         argon2::Algorithm::Argon2id,
         argon2::Version::V0x13,
@@ -55,7 +56,7 @@ fn create_argon2_hasher() -> Result<Argon2<'static>, AppError> {
 fn hash_pwd(password: String) -> Result<String, AppError> {
     let hasher = create_argon2_hasher()?;
     let salt = SaltString::generate(&mut OsRng);
-    
+
     let password_hash = hasher
         .hash_password(password.as_bytes(), &salt)
         .context("Failed to hash password")?;
@@ -64,12 +65,15 @@ fn hash_pwd(password: String) -> Result<String, AppError> {
 }
 
 fn verify_pwd(password: String, encrypted_password: String) -> Result<(), AppError> {
-    let password_hash = PasswordHash::new(&encrypted_password)
-        .map_err(|e| AppError::InvalidCredentialError(format!("Invalid password hash format: {}", e)))?;
+    let password_hash = PasswordHash::new(&encrypted_password).map_err(|e| {
+        AppError::InvalidCredentialError(format!("Invalid password hash format: {}", e))
+    })?;
 
     let hasher = create_argon2_hasher()?;
-    
+
     hasher
         .verify_password(password.as_bytes(), &password_hash)
-        .map_err(|e| AppError::InvalidCredentialError(format!("Password verification failed: {}", e)))
+        .map_err(|e| {
+            AppError::InvalidCredentialError(format!("Password verification failed: {}", e))
+        })
 }
