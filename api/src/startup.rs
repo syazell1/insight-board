@@ -30,7 +30,7 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(config: Settings) -> Result<Self> {
+    pub async fn build(app_state: Arc<AppState>, config: Settings) -> Result<Self> {
         let listener = create_tcp_listener(&config.application.host, config.application.port)
             .await
             .context("Failed to bind TCP listener")?;
@@ -40,7 +40,6 @@ impl Application {
             .context("Failed to get local address")?
             .port();
 
-        let app_state = create_app_state(&config)?;
         let app_routes = build_router(app_state, &config.application.client_url)?;
 
         let server_addr = format!("{}:{}", config.application.host, port);
@@ -71,15 +70,6 @@ async fn create_tcp_listener(host: &str, port: u16) -> Result<TcpListener> {
     TcpListener::bind(&address)
         .await
         .with_context(|| format!("Failed to bind to address: {}", address))
-}
-
-fn create_app_state(config: &Settings) -> Result<Arc<AppState>> {
-    let pool = create_db_pool(&config.database)?;
-    Ok(Arc::new(AppState {
-        pool,
-        jwt_settings: config.jwt.clone(),
-        client_url: config.application.client_url.clone(),
-    }))
 }
 
 pub fn create_db_pool(config: &DatabaseSettings) -> Result<PgPool> {
