@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use api::{
+    app_state::AppState,
     config::{DatabaseSettings, get_config},
     startup::Application,
     telemetry::{get_subscriber, initialize_subscriber},
@@ -39,7 +40,8 @@ pub async fn spawn_app() -> TestApp {
     };
 
     let _ = configure_db(&c.database).await;
-    let app = Application::build(c)
+    let app_state = AppState::build(&c).expect("Failed to build app state");
+    let app = Application::build(app_state, c)
         .await
         .expect("Failed to build application");
     let address = format!("http://localhost:{}/api", app.get_port());
@@ -63,4 +65,3 @@ async fn configure_db(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to run migrations.");
     pool
 }
-
