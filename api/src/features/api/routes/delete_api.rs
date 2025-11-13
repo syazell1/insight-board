@@ -32,6 +32,14 @@ pub async fn delete_api_endpoint(
 
     delete_api_endpoint_by_id(api_data.id, auth.0, &app_state.pool).await?;
 
+    tokio::spawn(async move {
+        let mut tasks = app_state.api_metrics_tasks.lock().await;
+
+        if let Some(handle) = tasks.remove(&api_id) {
+            handle.abort();
+        }
+    });
+
     Ok((StatusCode::OK).into_response())
 }
 
