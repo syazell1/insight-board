@@ -14,7 +14,7 @@ use crate::{
     app_state::AppState,
     errors::AppError,
     features::{api::models::ApiFormData, auth::jwt::AuthUser},
-    workers::api_monitoring::execute,
+    workers::api_monitoring::start_monitoring_task,
 };
 
 #[tracing::instrument(skip_all)]
@@ -27,17 +27,19 @@ pub async fn add_api_endpoint(
 
     let id = add_api(&data, user.0, &app_state.pool).await?;
 
-    // Spawn the background monitor asynchronously, outside any lock
-    let pool = app_state.pool.clone();
-    let url = data.url.clone();
-    let interval = data.interval_secs.unwrap_or(60);
+    if data.is_active.unwrap_or(true) {
+        let pool = app_state.pool.clone();
+        let url = data.url.clone();
+        let interval = data.interval_secs.unwrap_or(60);
+        let app_state_clone = app_state.clone();
 
-    // Fire-and-forget task registration
-    tokio::spawn(async move {
-        let handle = execute(id, url, interval, &pool);
-        let mut tasks = app_state.api_metrics_tasks.lock().await;
-        tasks.insert(id, handle);
-    });
+        tokio::spawn(async move {
+            let handle = start_monitoring_task(id, url, interval, &pool);
+            let mut tasks = app_state_clone.api_metrics_tasks.lock().await;
+            tasks.insert(id, handle);
+            tracing::debug!("Started monitoring task for API: {}", id);
+        });
+    }
 
     Ok((StatusCode::CREATED).into_response())
 }

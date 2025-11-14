@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use reqwest::Client;
 use sqlx::PgPool;
@@ -9,6 +9,8 @@ use crate::{
     features::api::models::ApiEndpointData, startup::create_db_pool,
 };
 
+const WORKER_SYNC_INTERVAL_SECS: u64 = 30;
+
 pub async fn run_api_monitoring_worker(config: Settings, app_state: Arc<AppState>) {
     let pool = create_db_pool(&config.database).expect("Failed to connect to Database".into());
 
@@ -16,6 +18,21 @@ pub async fn run_api_monitoring_worker(config: Settings, app_state: Arc<AppState
 }
 
 async fn execute_worker(pool: PgPool, app_state: Arc<AppState>) {
+    loop {
+        match sync_monitoring_tasks(&pool, &app_state).await {
+            Ok(_) => {
+                tracing::debug!("Successfully synced monitoring tasks");
+            }
+            Err(e) => {
+                tracing::error!("Error syncing monitoring tasks: {}", e);
+            }
+        }
+
+        tokio::time::sleep(Duration::from_secs(WORKER_SYNC_INTERVAL_SECS)).await;
+    }
+}
+
+async fn sync_monitoring_tasks(pool: &PgPool, app_state: &Arc<AppState>) -> Result<(), AppError> {
     let apis = sqlx::query_as!(
         ApiEndpointData,
         r#"
@@ -24,37 +41,42 @@ async fn execute_worker(pool: PgPool, app_state: Arc<AppState>) {
             WHERE is_active = TRUE 
         "#
     )
-    .fetch_all(&pool)
-    .await
-    .expect("Failed to fetch all endpoints".into());
+    .fetch_all(pool)
+    .await?;
 
-    if apis.len() > 0 {
-        println!("handling stuff");
-        // let mut handles = Vec::new();
-        let mut tasks = app_state.api_metrics_tasks.lock().await;
+    let mut tasks = app_state.api_metrics_tasks.lock().await;
 
-        for data in apis {
-            tasks.insert(
-                data.id,
-                execute(
-                    data.id,
-                    data.url,
-                    data.interval_seconds.unwrap_or(60),
-                    &pool,
-                ),
-            );
+    // Get Ids of APIs that should be monitored
+    let active_api_ids: HashSet<Uuid> = apis.iter().map(|api| api.id).collect();
+
+    // Filter Ids that is not active within the tasks
+    let tasks_to_remove: Vec<Uuid> = tasks
+        .keys()
+        .filter(|&id| !active_api_ids.contains(id))
+        .copied()
+        .collect();
+
+    for api_id in tasks_to_remove {
+        if let Some(handle) = tasks.remove(&api_id) {
+            handle.abort();
+            tracing::info!("Stopped monitoring task for API: {}", api_id);
         }
-
-        for h in tasks.drain() {
-            let _ = h.1.await;
-        }
-    } else {
-        println!("nope");
-        tokio::time::sleep(Duration::from_secs(10)).await;
     }
+
+    // Start tasks for new APIs
+    for api in apis {
+        if !tasks.contains_key(&api.id) {
+            let handle =
+                start_monitoring_task(api.id, api.url, api.interval_seconds.unwrap_or(60), pool);
+            tasks.insert(api.id, handle);
+            tracing::info!("Started monitoring task for API: {}", api.id);
+        }
+    }
+
+    Ok(())
 }
 
-pub fn execute(
+pub fn start_monitoring_task(
     api_id: Uuid,
     url: String,
     interval_seconds: i32,
@@ -66,7 +88,6 @@ pub fn execute(
         loop {
             match check_api(&client, &url).await {
                 Ok((status_code, latency)) => {
-                    println!("running");
                     let status = status_code == 200;
 
                     add_api_metric_result(
@@ -82,8 +103,9 @@ pub fn execute(
                     update_api_endpoint_status(api_id, status_code, latency, &db).await;
                 }
                 Err(e) => {
+                    // Check if API still exists before continuing
                     if let Err(e) = check_api_by_id(api_id, &db).await {
-                        eprintln!("{}", e.to_string());
+                        tracing::warn!("API {} no longer exists or error occurred: {}", api_id, e);
                         break;
                     }
 
@@ -95,6 +117,14 @@ pub fn execute(
             tokio::time::sleep(Duration::from_secs(interval_seconds as u64)).await;
         }
     })
+}
+
+pub async fn stop_monitoring_task(app_state: &Arc<AppState>, api_id: Uuid) {
+    let mut tasks = app_state.api_metrics_tasks.lock().await;
+    if let Some(handle) = tasks.remove(&api_id) {
+        handle.abort();
+        tracing::info!("Stopped monitoring task for API: {}", api_id);
+    }
 }
 
 async fn check_api(client: &Client, url: &str) -> Result<(u16, i32), reqwest::Error> {

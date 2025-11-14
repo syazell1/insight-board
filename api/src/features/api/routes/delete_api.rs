@@ -13,6 +13,7 @@ use crate::{
     app_state::AppState,
     errors::AppError,
     features::{api::repository::get_api_endpoint_by_id, auth::jwt::AuthUser},
+    workers::api_monitoring::stop_monitoring_task,
 };
 
 #[tracing::instrument(skip_all)]
@@ -32,13 +33,7 @@ pub async fn delete_api_endpoint(
 
     delete_api_endpoint_by_id(api_data.id, auth.0, &app_state.pool).await?;
 
-    tokio::spawn(async move {
-        let mut tasks = app_state.api_metrics_tasks.lock().await;
-
-        if let Some(handle) = tasks.remove(&api_id) {
-            handle.abort();
-        }
-    });
+    stop_monitoring_task(&app_state, api_id).await;
 
     Ok((StatusCode::OK).into_response())
 }
