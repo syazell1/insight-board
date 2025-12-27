@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -16,18 +16,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { useGetAllApi } from "../hooks/useGetAllApi";
 import AddApiServiceDialog from "./AddApiServiceDialog";
+import DeleteApiDialog from "./DeleteApiDialog";
+import { AppSidebar } from "@/components/AppSideBar";
 
 interface Service {
   id: string;
@@ -76,6 +67,7 @@ const Services = () => {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
+        <AppSidebar />
         <main className="flex-1">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-6">
             <SidebarTrigger />
@@ -87,7 +79,7 @@ const Services = () => {
               <p className="text-muted-foreground">
                 Manage your API endpoints and services
               </p>
-              <AddApiServiceDialog /> 
+              <AddApiServiceDialog />
             </div>
 
             <div className="rounded-md border">
@@ -134,13 +126,7 @@ const Services = () => {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => { }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <DeleteApiDialog id={service.id} />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -236,24 +222,6 @@ const Services = () => {
               </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <AlertDialog >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the service
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => { }}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
         </main>
       </div>

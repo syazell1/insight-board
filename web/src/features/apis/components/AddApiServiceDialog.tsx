@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -19,18 +20,21 @@ import { useEffect, useState } from "react";
 
 const AddApiServiceDialog = () => {
   const [isOpen, setIsOpen] = useState(false)
-  const {register, control, handleSubmit, formState: {errors}} = useForm<TApiServiceForm>({
+  const { register, control, handleSubmit, formState: { errors } } = useForm<TApiServiceForm>({
     resolver: zodResolver(apiServiceFormSchema)
   });
-  const {mutate, isPending, isSuccess} = useAddApi();
+
+  console.log(errors);
+
+  const { mutate, isPending, isSuccess } = useAddApi();
 
   useEffect(() => {
-    if(isSuccess){
+    if (isSuccess) {
       setIsOpen(false);
     }
   }, [isSuccess])
 
-  const submitHandler = (data : TApiServiceForm) => {
+  const submitHandler = (data: TApiServiceForm) => {
     mutate(data);
   }
 
@@ -51,9 +55,11 @@ const AddApiServiceDialog = () => {
         </DialogHeader>
         <ApiServiceForm register={register} control={control} />
         <DialogFooter>
-          <Button variant="outline" onClick={() => { }}>
-            Cancel
-          </Button>
+          <DialogClose asChild>
+            <Button variant="outline" onClick={() => { }}>
+              Cancel
+            </Button>
+          </DialogClose>
           <Button onClick={handleSubmit(submitHandler)}>
             {isPending ? "Adding..." : "Add Service"}
           </Button>
