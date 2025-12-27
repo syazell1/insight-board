@@ -30,7 +30,7 @@ pub async fn add_api_endpoint(
     if data.is_active.unwrap_or(true) {
         let pool = app_state.pool.clone();
         let url = data.url.clone();
-        let interval = data.interval_secs.unwrap_or(60);
+        let interval = data.interval_secs.unwrap_or(30);
         let app_state_clone = app_state.clone();
 
         tokio::spawn(async move {
@@ -49,16 +49,17 @@ async fn add_api(data: &ApiFormData, user_id: Uuid, pool: &PgPool) -> Result<Uui
 
     sqlx::query!(
         r#"
-            INSERT INTO api_endpoints (id, user_id, name, url, interval_seconds, is_active)
+            INSERT INTO api_endpoints (id, user_id, name, url, interval_seconds, is_active, description)
             VALUES
-            ($1, $2, $3, $4, $5, $6)
+            ($1, $2, $3, $4, $5, $6, $7)
         "#,
         id,
         user_id,
         data.name,
         data.url,
-        data.interval_secs,
-        data.is_active
+        data.interval_secs.unwrap_or(30),
+        data.is_active.unwrap_or(false),
+        data.description
     )
     .execute(pool)
     .await?;
