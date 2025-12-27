@@ -6,6 +6,8 @@ import { loginUserSchema } from "../auth.schema";
 import { useForm } from "react-hook-form";
 import type { TLoginUser } from "../auth.types";
 import { useLoginUser } from "../hooks/useLoginUser";
+import { isAxiosError } from "axios";
+import type { IErrorResponse } from "@/models/error-response.types";
 
 const LoginForm = () => {
   const { register, handleSubmit } = useForm<TLoginUser>({
@@ -16,7 +18,7 @@ const LoginForm = () => {
     }
   });
 
-  const { mutate, isPending } = useLoginUser()
+  const { mutate, isPending, error } = useLoginUser()
 
   const submitLogin = (data: TLoginUser) => {
     mutate(data);
@@ -29,6 +31,7 @@ const LoginForm = () => {
         <Input
           {...register("username")}
           id="username"
+          placeholder="Username"
           required
         />
       </div>
@@ -38,9 +41,11 @@ const LoginForm = () => {
           {...register("password")}
           id="login-password"
           type="password"
+          placeholder="Password"
           required
         />
       </div>
+      {isAxiosError<IErrorResponse>(error) && <p className="text-red-500 text-center text-sm font-medium">{error.response?.data.details}</p>}
       <Button
         type="submit"
         className="w-full bg-primary hover:bg-primary/90"
