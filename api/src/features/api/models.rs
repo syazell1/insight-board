@@ -7,6 +7,7 @@ use validator::Validate;
 pub struct ApiFormData {
     pub name: String,
     pub url: String,
+    pub description : Option<String>,
     pub interval_secs: Option<i32>,
     pub is_active: Option<bool>,
 }

@@ -15,6 +15,7 @@ use crate::{
     app_state::AppState,
     errors::AppError,
     features::{api::models::ApiFormData, auth::jwt::AuthUser},
+    workers::api_monitoring::{start_monitoring_task, stop_monitoring_task},
 };
 
 #[tracing::instrument(skip_all)]
@@ -34,6 +35,22 @@ pub async fn update_api_endpoint(
     check_api_by_id(id, &mut tx).await?;
 
     update_api_endpoint_by_id(id, user.0, &data, &mut tx).await?;
+
+    stop_monitoring_task(&app_state, id).await;
+
+    if data.is_active.unwrap_or(true) {
+        let pool = app_state.pool.clone();
+        let url = data.url.clone();
+        let interval = data.interval_secs.unwrap_or(30);
+        let app_state_clone = app_state.clone();
+
+        tokio::spawn(async move {
+            let handle = start_monitoring_task(id, url, interval, &pool);
+            let mut tasks = app_state_clone.api_metrics_tasks.lock().await;
+            tasks.insert(id, handle);
+            tracing::debug!("Started monitoring task for API: {}", id);
+        });
+    }
 
     Ok((StatusCode::OK).into_response())
 }
@@ -55,15 +72,16 @@ async fn update_api_endpoint_by_id(
 ) -> Result<(), AppError> {
     let query = sqlx::query!(
         r#"
-            UPDATE api_endpoints SET url = $1, name = $2, interval_seconds = $3, is_active = $4
-            WHERE id = $5 AND user_id = $6
+            UPDATE api_endpoints SET url = $1, name = $2, interval_seconds = $3, is_active = $4, description = $5
+            WHERE id = $6 AND user_id = $7
              "#,
         data.url,
         data.name,
-        data.interval_secs,
-        data.is_active,
+        data.interval_secs.unwrap_or(30),
+        data.is_active.unwrap_or(false),
+        data.description,
         api_id,
-        user_id
+        user_id,
     );
 
     tx.execute(query).await?;

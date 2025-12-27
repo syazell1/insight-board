@@ -6,6 +6,8 @@ import type { TRegisterUser } from "../auth.types";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerUserSchema } from "../auth.schema";
+import { isAxiosError } from "axios";
+import type { IErrorResponse } from "@/models/error-response.types";
 
 const RegisterUserForm = () => {
   const { register, handleSubmit } = useForm<TRegisterUser>({
@@ -13,12 +15,10 @@ const RegisterUserForm = () => {
     defaultValues: {
       username: "",
       password: "",
-      email: "",
-      name: ""
     }
   });
 
-  const { mutate, isPending } = useRegisterUser();
+  const { mutate, isPending, error } = useRegisterUser();
 
 
   const submitRegister = (data: TRegisterUser) => {
@@ -33,17 +33,7 @@ const RegisterUserForm = () => {
           {...register("username")}
           id="username"
           type="text"
-          placeholder="John Doe"
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="signup-email">Email</Label>
-        <Input
-          {...register("email")}
-          id="signup-email"
-          type="email"
-          placeholder="name@example.com"
+          placeholder="Username"
           required
         />
       </div>
@@ -53,9 +43,11 @@ const RegisterUserForm = () => {
           {...register("password")}
           id="signup-password"
           type="password"
+          placeholder="Password"
           required
         />
       </div>
+      {isAxiosError<IErrorResponse>(error) && <p className="text-red-500 text-center text-sm font-medium">{error.response?.data.details}</p>}
       <Button
         type="submit"
         className="w-full bg-primary hover:bg-primary/90"
